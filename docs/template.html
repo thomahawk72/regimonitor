@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming Dashboard - Lang Avstand</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Arial Black', Arial, sans-serif;
+            font-weight: 900;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dashboard {
+            width: 1920px;
+            height: 1080px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 50px;
+            padding: 80px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+            border-radius: 30px;
+            padding: 80px 60px;
+            border: 4px solid #333;
+            transition: all 0.3s ease;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.08;
+            background-size: 400px 400px;
+            background-repeat: no-repeat;
+            background-position: center;
+            z-index: 1;
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-title {
+            font-size: 32px;
+            margin-bottom: 40px;
+            color: #ccc;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 700;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .connection-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 5.73L18.18 22 12 18.77 5.82 22 7 15l-5-5.73 6.91-1.01L12 2z"/></svg>');
+        }
+
+        .broadcast-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M21,6V8H3V6H21M3,18V16H21V18H3M3,13V11H21V13H3Z"/></svg>');
+        }
+
+        .destinations-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4V11.5L16.25,15.75L17.66,14.34L14,10.69V4H12Z"/></svg>');
+        }
+
+        .quality-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.46,13.97L5.82,21L12,17.27Z"/></svg>');
+        }
+
+        .status-value {
+            font-size: 80px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 0.9;
+        }
+
+        .status-detail {
+            font-size: 24px;
+            color: #888;
+            font-weight: 600;
+        }
+
+        /* Connection status colors */
+        .connection-5g {
+            border-color: #ff8800;
+            box-shadow: 0 15px 40px rgba(255, 136, 0, 0.3);
+        }
+        .connection-5g .status-value { 
+            color: #ff8800; 
+            text-shadow: 0 0 20px rgba(255, 136, 0, 0.8);
+        }
+
+        .connection-lan {
+            border-color: #0088ff;
+            box-shadow: 0 15px 40px rgba(0, 136, 255, 0.3);
+        }
+        .connection-lan .status-value { 
+            color: #0088ff; 
+            text-shadow: 0 0 20px rgba(0, 136, 255, 0.8);
+        }
+
+        /* Broadcasting status */
+        .broadcasting-active {
+            border-color: #ff4444;
+            box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3);
+        }
+        .broadcasting-active .status-value { 
+            color: #ff4444; 
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+            animation: pulse 2s infinite;
+        }
+
+        .broadcasting-inactive .status-value { color: #666; }
+
+        /* Destinations */
+        .destinations {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .destination-tag {
+            background: #333;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #00ff88;
+            border: 2px solid #00ff88;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Quality indicators */
+        .quality-metrics {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            gap: 60px;
+        }
+
+        .quality-metric {
+            text-align: center;
+            flex: 1;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-value {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 10px;
+            line-height: 0.9;
+        }
+
+        .metric-label {
+            font-size: 20px;
+            color: #888;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .traffic-light {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 35px;
+            margin: 40px 0;
+        }
+
+        .light {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 6px solid #333;
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .light.red { background: #ff4444; }
+        .light.yellow { background: #ffaa00; }
+        .light.green { background: #00ff88; }
+
+        .light.active {
+            opacity: 1;
+            border-color: currentColor;
+        }
+
+        .light.red.active { 
+            color: #ff4444;
+            box-shadow: 0 0 40px #ff4444;
+            animation: redAlert 1s infinite;
+        }
+
+        .light.yellow.active { 
+            color: #ffaa00;
+            box-shadow: 0 0 40px #ffaa00;
+            animation: yellowWarning 2s infinite;
+        }
+
+        .light.green.active { 
+            color: #00ff88;
+            box-shadow: 0 0 40px #00ff88;
+        }
+
+        /* Quality card borders */
+        .quality-excellent {
+            border-color: #00ff88;
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.3);
+        }
+        .quality-good {
+            border-color: #ffaa00;
+            box-shadow: 0 15px 40px rgba(255, 170, 0, 0.3);
+        }
+        .quality-poor {
+            border-color: #ff4444;
+            box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes redAlert {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes yellowWarning {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="status-card connection-card connection-5g">
+            <div class="card-content">
+                <div class="status-title">Tilkobling</div>
+                <div class="card-body">
+                    <div class="status-value">5G</div>
+                    <div class="status-detail">STABIL</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-card broadcast-card broadcasting-active">
+            <div class="card-content">
+                <div class="status-title">Broadcast</div>
+                <div class="card-body">
+                    <div class="status-value">LIVE</div>
+                    <div class="status-detail">SENDER</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-card destinations-card">
+            <div class="card-content">
+                <div class="status-title">Destinasjoner</div>
+                <div class="card-body">
+                    <div class="destinations">
+                        <div class="destination-tag">YouTube</div>
+                        <div class="destination-tag">Facebook</div>
+                        <div class="destination-tag">Web TV</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-card quality-card quality-excellent">
+            <div class="card-content">
+                <div class="status-title">Kvalitet</div>
+                <div class="card-body">
+                    <div class="quality-metrics">
+                        <div class="quality-metric">
+                            <div class="metric-value" style="color: #00ff88;">8.2</div>
+                            <div class="metric-label">Mbps</div>
+                        </div>
+                        <div class="quality-metric">
+                            <div class="metric-value" style="color: #00ff88;">24</div>
+                            <div class="metric-label">Ping</div>
+                        </div>
+                        <div class="quality-metric">
+                            <div class="metric-value" style="color: #00ff88;">2.1</div>
+                            <div class="metric-label">Jitter</div>
+                        </div>
+                    </div>
+
+                    <div class="traffic-light">
+                        <div class="light red"></div>
+                        <div class="light yellow"></div>
+                        <div class="light green active"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simuler live data oppdateringer med kvalitetsvurdering
+        function updateQuality() {
+            // Simuler data fra dine systemer
+            const bitrate = Math.random() * 10 + 5; // 5-15 Mbps
+            const ping = Math.random() * 50 + 10;   // 10-60 ms
+            const jitter = Math.random() * 8 + 1;   // 1-9 ms
+            
+            // Beregn kvalitet basert på verdier
+            let quality = 'excellent';
+            let qualityText = 'PERFEKT';
+            
+            if (bitrate < 6 || ping > 50 || jitter > 5) {
+                quality = 'poor';
+                qualityText = 'DÅRLIG';
+            } else if (bitrate < 8 || ping > 35 || jitter > 3) {
+                quality = 'good';
+                qualityText = 'BRA';
+            }
+            
+            // Oppdater kvalitetsstatus - fjern tekst under trafikklys
+            const lights = document.querySelectorAll('.light');
+            lights.forEach(light => light.classList.remove('active'));
+            
+            if (quality === 'poor') {
+                document.querySelector('.light.red').classList.add('active');
+            } else if (quality === 'good') {
+                document.querySelector('.light.yellow').classList.add('active');
+            } else {
+                document.querySelector('.light.green').classList.add('active');
+            }
+            
+            // Oppdater kort-klasse for farger og ramme
+            const qualityCard = document.querySelector('.quality-card');
+            qualityCard.className = `status-card quality-card quality-${quality}`;
+            
+            // Oppdater metrikk-farger
+            const metricValues = document.querySelectorAll('.metric-value');
+            const color = quality === 'excellent' ? '#00ff88' : 
+                         quality === 'good' ? '#ffaa00' : '#ff4444';
+            
+            metricValues.forEach(value => {
+                value.style.color = color;
+            });
+            
+            // Oppdater faktiske verdier (valgfritt)
+            metricValues[0].textContent = bitrate.toFixed(1);
+            metricValues[1].textContent = Math.round(ping);
+            metricValues[2].textContent = jitter.toFixed(1);
+            
+            console.log(`Kvalitet: ${qualityText}`);
+        }
+        
+        // Simuler tilkoblingsendringer
+        function updateConnection() {
+            const connections = ['5G', 'LAN'];
+            const connectionTypes = ['connection-5g', 'connection-lan'];
+            const randomIndex = Math.floor(Math.random() * connections.length);
+            
+            const connectionCard = document.querySelector('.connection-card');
+            const connectionValue = connectionCard.querySelector('.status-value');
+            
+            connectionCard.className = `status-card connection-card ${connectionTypes[randomIndex]}`;
+            connectionValue.textContent = connections[randomIndex];
+        }
+        
+        // Oppdater kvalitet hvert 3. sekund
+        setInterval(updateQuality, 3000);
+        
+        // Oppdater tilkobling hvert 10. sekund
+        setInterval(updateConnection, 10000);
+        
+        // Initial oppdatering
+        updateQuality();
+    </script>
+</body>
+</html>

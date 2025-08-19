@@ -1,0 +1,14 @@
+{
+  "name": "regimonitor-frontend",
+  "version": "1.0.0",
+  "description": "RegiMonitor frontend dashboard",
+  "main": "public/index.html",
+  "scripts": {
+    "start": "echo 'Frontend kjører via backend server'",
+    "build": "echo 'Frontend er allerede bygget (vanilla HTML/CSS/JS)'",
+    "dev": "echo 'Bruk npm run dev i root for å starte backend med frontend'"
+  },
+  "keywords": ["frontend", "dashboard", "health-service", "html"],
+  "author": "",
+  "license": "MIT"
+} 

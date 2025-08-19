@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegiMonitor Dashboard v2</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Arial Black', Arial, sans-serif;
+            font-weight: 900;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dashboard {
+            width: 1920px;
+            height: 1080px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 50px;
+            padding: 80px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+            border-radius: 30px;
+            padding: 80px 60px;
+            border: 4px solid #333;
+            transition: all 0.3s ease;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.08;
+            background-size: 400px 400px;
+            background-repeat: no-repeat;
+            background-position: center;
+            z-index: 1;
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-title {
+            font-size: 32px;
+            margin-bottom: 40px;
+            color: #ccc;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 700;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* Clock card styling */
+        .clock-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4V11.5L16.25,15.75L17.66,14.34L14,10.69V4H12Z"/></svg>');
+        }
+
+        .health-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12,21.35l-1.45-1.32C5.4,15.36,2,12.28,2,8.5C2,5.42,4.42,3,7.5,3c1.74,0,3.41,0.81,4.5,2.09C13.09,3.81,14.76,3,16.5,3C19.58,3,22,5.42,22,8.5c0,3.78-3.4,6.86-8.55,11.54L12,21.35Z"/></svg>');
+        }
+
+        .system-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12,3L1,9L12,15L21,10.09V17H23V9M5,13.18V17.18L12,21L19,17.18V13.18L12,17L5,13.18Z"/></svg>');
+        }
+
+        .network-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8zM12,6c-3.31,0 -6,2.69 -6,6s2.69,6 6,6 6,-2.69 6,-6 -2.69,-6 -6,-6z"/></svg>');
+        }
+
+        .broadcast-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M21,6V8H3V6H21M3,18V16H21V18H3M3,13V11H21V13H3Z"/></svg>');
+        }
+
+        .status-value {
+            font-size: 80px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 0.9;
+        }
+
+        .status-detail {
+            font-size: 24px;
+            color: #888;
+            font-weight: 600;
+        }
+
+        /* Clock status colors */
+        .clock-working {
+            border-color: #0088ff;
+            box-shadow: 0 15px 40px rgba(0, 136, 255, 0.3);
+        }
+        .clock-working .status-value { 
+            color: #0088ff; 
+            text-shadow: 0 0 20px rgba(0, 136, 255, 0.8);
+        }
+
+        .clock-evening {
+            border-color: #ff8800;
+            box-shadow: 0 15px 40px rgba(255, 136, 0, 0.3);
+        }
+        .clock-evening .status-value { 
+            color: #ff8800; 
+            text-shadow: 0 0 20px rgba(255, 136, 0, 0.8);
+        }
+
+        .clock-night {
+            border-color: #8800ff;
+            box-shadow: 0 15px 40px rgba(136, 0, 255, 0.3);
+        }
+        .clock-night .status-value { 
+            color: #8800ff; 
+            text-shadow: 0 0 20px rgba(136, 0, 255, 0.8);
+        }
+
+        /* Broadcast status */
+        .broadcast-live {
+            border-color: #ff4444;
+            box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3);
+        }
+        .broadcast-live .status-value { 
+            color: #ff4444; 
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+            animation: pulse 2s infinite;
+        }
+
+        .broadcast-offline {
+            border-color: #666;
+            box-shadow: 0 15px 40px rgba(102, 102, 102, 0.3);
+        }
+        .broadcast-offline .status-value { 
+            color: #666; 
+            text-shadow: 0 0 20px rgba(102, 102, 102, 0.8);
+        }
+
+        .broadcast-error {
+            border-color: #ff4444;
+            box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3);
+        }
+        .broadcast-error .status-value { 
+            color: #ff4444; 
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+        }
+
+        /* System status */
+        .system-active {
+            border-color: #ffaa00;
+            box-shadow: 0 15px 40px rgba(255, 170, 0, 0.3);
+        }
+        .system-active .status-value { 
+            color: #ffaa00; 
+            text-shadow: 0 0 20px rgba(255, 170, 0, 0.8);
+        }
+
+        /* Network status */
+        .network-5g {
+            border-color: #ff8800;
+            box-shadow: 0 15px 40px rgba(255, 136, 0, 0.3);
+        }
+        .network-5g .status-value { 
+            color: #ff8800; 
+            text-shadow: 0 0 20px rgba(255, 136, 0, 0.8);
+        }
+
+        .network-lan {
+            border-color: #0088ff;
+            box-shadow: 0 15px 40px rgba(0, 136, 255, 0.3);
+        }
+        .network-lan .status-value { 
+            color: #0088ff; 
+            text-shadow: 0 0 20px rgba(0, 136, 255, 0.8);
+        }
+
+        .network-error {
+            border-color: #ff4444;
+            box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3);
+        }
+        .network-error .status-value { 
+            color: #ff4444; 
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+        }
+
+        .network-cache {
+            border-color: #ffaa00;
+            box-shadow: 0 15px 40px rgba(255, 170, 0, 0.3);
+        }
+        .network-cache .status-value { 
+            color: #ffaa00; 
+            text-shadow: 0 0 20px rgba(255, 170, 0, 0.8);
+        }
+
+        .time-display {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .time-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .time-label {
+            font-size: 18px;
+            color: #888;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .time-value {
+            font-size: 24px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 24px;
+        }
+
+        .error {
+            background: rgba(255, 68, 68, 0.1);
+            color: #ff4444;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 68, 68, 0.3);
+            margin-top: 20px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Clock Panel -->
+        <div class="status-card clock-card" id="clock-card">
+            <div class="card-content">
+                <div class="status-title">Serverklokke</div>
+                <div class="card-body">
+                    <div class="status-value" id="clock-time">--:--</div>
+                    <div class="status-detail" id="clock-status">Laster...</div>
+                    <div class="time-display" id="clock-details">
+                        <div class="loading">Laster klokke-data...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Broadcast Panel -->
+        <div class="status-card broadcast-card" id="broadcast-card">
+            <div class="card-content">
+                <div class="status-title">Broadcast</div>
+                <div class="card-body">
+                    <div class="status-value" id="broadcast-status">--</div>
+                    <div id="broadcast-details">
+                        <div class="loading">Laster broadcast-data...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Panel -->
+        <div class="status-card system-card" id="system-card">
+            <div class="card-content">
+                <div class="status-title">Systemstatus</div>
+                <div class="card-body">
+                    <div class="status-value" id="system-status">--</div>
+                    <div class="status-detail" id="system-detail">Laster...</div>
+                    <div id="system-details">
+                        <div class="loading">Laster system-data...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Panel -->
+        <div class="status-card network-card" id="network-card">
+            <div class="card-content">
+                <div class="status-title">Nettverk</div>
+                <div class="card-body">
+                    <div class="status-value" id="network-status">--</div>
+                    <div id="network-details">
+                        <div class="loading">Laster nettverks-data...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DashboardAPI {
+            constructor() {
+                this.baseURL = '/api';
+                // Standard intervaller (vil bli overskrevet av config)
+                this.intervals = {
+                    clock: 1000,      // 1 sekund
+                    network: 30000,   // 30 sekunder
+                    broadcast: 15000, // 15 sekunder
+                    system: 60000     // 60 sekunder
+                };
+                this.timers = {}; // Holder styr på alle timers
+            }
+
+            async fetchData(endpoint) {
+                try {
+                    const response = await fetch(`${this.baseURL}${endpoint}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Error fetching ${endpoint}:`, error);
+                    throw error;
+                }
+            }
+
+            async loadConfig() {
+                try {
+                    const data = await this.fetchData('/config');
+                    if (data.success) {
+                        this.intervals = data.data.pollingIntervals;
+                        console.log('📊 Konfigurasjon lastet:', this.intervals);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Kunne ikke laste konfigurasjon, bruker standard intervaller');
+                }
+            }
+
+            async updateClock() {
+                try {
+                    const data = await this.fetchData('/clock/status');
+                    if (data.success) {
+                        const clockData = data.data;
+                        
+                        // Oppdater hovedklokke
+                        document.getElementById('clock-time').textContent = clockData.localTime;
+                        document.getElementById('clock-status').textContent = clockData.status;
+                        
+                        // Oppdater detaljer
+                        const detailsHtml = `
+                            <div class="time-item">
+                                <div class="time-label">Dato</div>
+                                <div class="time-value">${clockData.localDate}</div>
+                            </div>
+                            <div class="time-item">
+                                <div class="time-label">Tidssone</div>
+                                <div class="time-value">${clockData.timezone}</div>
+                            </div>
+                            <div class="time-item">
+                                <div class="time-label">Uptime</div>
+                                <div class="time-value">${Math.floor(clockData.serverUptime / 3600)}t ${Math.floor((clockData.serverUptime % 3600) / 60)}m</div>
+                            </div>
+                        `;
+                        document.getElementById('clock-details').innerHTML = detailsHtml;
+                        
+                        // Oppdater kort-stil basert på status
+                        const clockCard = document.getElementById('clock-card');
+                        clockCard.className = `status-card clock-card clock-${clockData.status.toLowerCase().replace('arbeidstid', 'working').replace('kveld', 'evening').replace('natt', 'night')}`;
+                    }
+                } catch (error) {
+                    document.getElementById('clock-details').innerHTML = `
+                        <div class="error">
+                            <strong>Feil:</strong> Kunne ikke hente klokke-data
+                        </div>
+                    `;
+                }
+            }
+
+            async updateBroadcast() {
+                try {
+                    const data = await this.fetchData('/broadcast/status');
+                    if (data.success) {
+                        const broadcastData = data.data;
+                        
+                        // Oppdater hovedstatus
+                        document.getElementById('broadcast-status').textContent = broadcastData.status;
+                        
+                        // Oppdater detaljer - kun Stream-rammen
+                        const detailsHtml = `
+                            <div class="time-item">
+                                <div class="time-label">Stream</div>
+                                <div class="time-value">${broadcastData.streamName}</div>
+                            </div>
+                        `;
+                        document.getElementById('broadcast-details').innerHTML = detailsHtml;
+                        
+                        // Oppdater kort-stil basert på broadcast-status
+                        const broadcastCard = document.getElementById('broadcast-card');
+                        let cardClass = 'broadcast-offline'; // Standard
+                        
+                        if (broadcastData.error) {
+                            cardClass = 'broadcast-error';
+                        } else if (broadcastData.broadcasting) {
+                            cardClass = 'broadcast-live';
+                        }
+                        
+                        broadcastCard.className = `status-card broadcast-card ${cardClass}`;
+                    }
+                } catch (error) {
+                    // Vis feilmelding
+                    document.getElementById('broadcast-status').textContent = 'FEIL';
+                    
+                    document.getElementById('broadcast-details').innerHTML = `
+                        <div class="error">
+                            <strong>Feil:</strong> Kunne ikke hente broadcast-data
+                        </div>
+                    `;
+                    
+                    const broadcastCard = document.getElementById('broadcast-card');
+                    broadcastCard.className = 'status-card broadcast-card broadcast-error';
+                }
+            }
+
+            async updateSystem() {
+                try {
+                    const data = await this.fetchData('/health');
+                    
+                    // Simuler system status basert på uptime
+                    const uptimeHours = data.uptime / 3600;
+                    let status, detail, cardClass;
+                    
+                    if (uptimeHours < 1) {
+                        status = 'START';
+                        detail = 'OPPSTARTER';
+                        cardClass = 'system-starting';
+                    } else if (uptimeHours < 24) {
+                        status = 'AKTIV';
+                        detail = 'STABIL';
+                        cardClass = 'system-active';
+                    } else {
+                        status = 'ROBUST';
+                        detail = 'PÅLITELIG';
+                        cardClass = 'system-active';
+                    }
+                    
+                    document.getElementById('system-status').textContent = status;
+                    document.getElementById('system-detail').textContent = detail;
+                    
+                    const detailsHtml = `
+                        <div class="time-item">
+                            <div class="time-label">Uptime</div>
+                            <div class="time-value">${Math.floor(uptimeHours)}t ${Math.floor((data.uptime % 3600) / 60)}m</div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-label">Sist oppdatert</div>
+                            <div class="time-value">${new Date(data.timestamp).toLocaleTimeString('nb-NO')}</div>
+                        </div>
+                    `;
+                    document.getElementById('system-details').innerHTML = detailsHtml;
+                    
+                    const systemCard = document.getElementById('system-card');
+                    systemCard.className = `status-card system-card ${cardClass}`;
+                } catch (error) {
+                    document.getElementById('system-details').innerHTML = `
+                        <div class="error">
+                            <strong>Feil:</strong> Kunne ikke hente system-data
+                        </div>
+                    `;
+                }
+            }
+
+            async updateNetwork() {
+                try {
+                    const data = await this.fetchData('/network/status');
+                    if (data.success) {
+                        const networkData = data.data;
+                        
+                        // Oppdater hovedstatus
+                        document.getElementById('network-status').textContent = networkData.connectionType;
+                        
+                        // Oppdater detaljer (LOKASJON FJERNET - kun ISP og Status) - VERSJON 2025-08-19-20:25
+                        const detailsHtml = `
+                            <div class="time-item">
+                                <div class="time-label">ISP</div>
+                                <div class="time-value">${networkData.isp}</div>
+                            </div>
+                            <div class="time-item">
+                                <div class="time-label">Status</div>
+                                <div class="time-value">${networkData.status}${networkData.cached ? ' (Cache)' : ''}</div>
+                            </div>
+                        `;
+                        console.log('🔧 Oppdaterer network-details med:', detailsHtml);
+                        document.getElementById('network-details').innerHTML = detailsHtml;
+                        
+                        // Oppdater kort-stil basert på tilkoblingstype og status
+                        const networkCard = document.getElementById('network-card');
+                        let cardClass = 'network-lan'; // Standard
+                        
+                        if (networkData.error) {
+                            cardClass = 'network-error';
+                        } else if (networkData.cached) {
+                            cardClass = 'network-cache';
+                        } else if (networkData.connectionType === '5G') {
+                            cardClass = 'network-5g';
+                        } else if (networkData.connectionType === 'LAN') {
+                            cardClass = 'network-lan';
+                        }
+                        
+                        networkCard.className = `status-card network-card ${cardClass}`;
+                    }
+                } catch (error) {
+                    // Vis feilmelding
+                    document.getElementById('network-status').textContent = 'FEIL';
+                    
+                    document.getElementById('network-details').innerHTML = `
+                        <div class="error">
+                            <strong>Feil:</strong> Kunne ikke hente nettverksdata
+                        </div>
+                    `;
+                    
+                    const networkCard = document.getElementById('network-card');
+                    networkCard.className = 'status-card network-card network-error';
+                }
+            }
+
+            startUpdates() {
+                // Start umiddelbare oppdateringer
+                this.updateClock();
+                this.updateBroadcast();
+                this.updateSystem();
+                this.updateNetwork();
+                
+                // Start separate polling-intervaller
+                this.timers.clock = setInterval(() => this.updateClock(), this.intervals.clock);
+                this.timers.broadcast = setInterval(() => this.updateBroadcast(), this.intervals.broadcast);
+                this.timers.system = setInterval(() => this.updateSystem(), this.intervals.system);
+                this.timers.network = setInterval(() => this.updateNetwork(), this.intervals.network);
+                
+                console.log('🔄 Polling startet med intervaller:', {
+                    clock: `${this.intervals.clock/1000}s`,
+                    broadcast: `${this.intervals.broadcast/1000}s`,
+                    network: `${this.intervals.network/1000}s`,
+                    system: `${this.intervals.system/1000}s`
+                });
+            }
+
+            stopUpdates() {
+                // Stopp alle timers
+                Object.keys(this.timers).forEach(key => {
+                    if (this.timers[key]) {
+                        clearInterval(this.timers[key]);
+                        this.timers[key] = null;
+                    }
+                });
+                console.log('⏹️ Polling stoppet');
+            }
+        }
+
+        // Start dashboard når siden lastes
+        document.addEventListener('DOMContentLoaded', async () => {
+            const dashboard = new DashboardAPI();
+            
+            // Last konfigurasjon først, deretter start polling
+            await dashboard.loadConfig();
+            dashboard.startUpdates();
+            
+            // Cleanup når siden lukkes
+            window.addEventListener('beforeunload', () => {
+                dashboard.stopUpdates();
+            });
+        });
+    </script>
+</body>
+</html> 
