@@ -1,10 +1,13 @@
+// Last .env-fil fra root-mappen
+require('dotenv').config({ path: '../.env' });
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config/config');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = config.PORT;
 
 // Middleware
 app.use(cors());
@@ -15,6 +18,7 @@ app.use(express.static(path.join(__dirname, '../frontend/public')));
 const clockRoutes = require('./routes/clockRoutes');
 const networkRoutes = require('./routes/networkRoutes');
 const broadcastRoutes = require('./routes/broadcastRoutes');
+const qualityRoutes = require('./routes/qualityRoutes');
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -40,6 +44,7 @@ app.get('/api/config', (req, res) => {
         clock: config.POLLING_INTERVALS.CLOCK * 1000,      // Konverter til millisekunder
         network: config.POLLING_INTERVALS.NETWORK * 1000,
         broadcast: config.POLLING_INTERVALS.BROADCAST * 1000,
+        quality: config.POLLING_INTERVALS.QUALITY * 1000,
         system: config.POLLING_INTERVALS.SYSTEM * 1000
       }
     },
@@ -52,14 +57,15 @@ app.get('/api', (req, res) => {
   res.json({
     message: 'RegiMonitor API er aktiv',
     version: '1.0.0',
-    endpoints: {
-      health: '/api/health',
-      clock: '/api/clock',
-      network: '/api/network',
-      broadcast: '/api/broadcast',
-      config: '/api/config',
-      root: '/api'
-    }
+          endpoints: {
+        health: '/api/health',
+        clock: '/api/clock',
+        network: '/api/network',
+        broadcast: '/api/broadcast',
+        quality: '/api/quality',
+        config: '/api/config',
+        root: '/api'
+      }
   });
 });
 
@@ -67,6 +73,7 @@ app.get('/api', (req, res) => {
 app.use('/api/clock', clockRoutes);
 app.use('/api/network', networkRoutes);
 app.use('/api/broadcast', broadcastRoutes);
+app.use('/api/quality', qualityRoutes);
 
 // Serve frontend
 app.get('/', (req, res) => {
