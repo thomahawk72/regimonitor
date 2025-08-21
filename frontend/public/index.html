@@ -109,6 +109,10 @@
             background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8zM12,6c-3.31,0 -6,2.69 -6,6s2.69,6 6,6 6,-2.69 6,-6 -2.69,-6 -6,-6z"/></svg>');
         }
 
+        .destinations-card::before {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 5.73L18.18 22 12 18.77 5.82 22 7 15l-5-5.73 6.91-1.01L12 2z"/></svg>');
+        }
+
         .broadcast-card::before {
             background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M21,6V8H3V6H21M3,18V16H21V18H3M3,13V11H21V13H3Z"/></svg>');
         }
@@ -341,6 +345,55 @@
             text-shadow: 0 0 20px rgba(255, 170, 0, 0.8);
         }
 
+        /* Destinations styling */
+        .destinations {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .destination-tag {
+            background: #333;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #00ff88;
+            border: 2px solid #00ff88;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        /* Destinations card states */
+        .destinations-active {
+            border-color: #00ff88;
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.3);
+        }
+        .destinations-active .status-value { 
+            color: #00ff88; 
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+        }
+
+        .destinations-inactive {
+            border-color: #666;
+            box-shadow: 0 15px 40px rgba(102, 102, 102, 0.3);
+        }
+        .destinations-inactive .status-value { 
+            color: #666; 
+            text-shadow: 0 0 20px rgba(102, 102, 102, 0.8);
+        }
+
+        .destinations-error {
+            border-color: #ff4444;
+            box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3);
+        }
+        .destinations-error .status-value { 
+            color: #ff4444; 
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+        }
+
         .time-display {
             display: flex;
             flex-direction: column;
@@ -394,19 +447,17 @@
 </head>
 <body>
     <div class="dashboard">
-        <!-- Clock Panel -->
-        <div class="status-card clock-card" id="clock-card">
-            <div class="card-content">
-                <div class="status-title">Serverklokke</div>
-                <div class="card-body">
-                    <div class="status-value" id="clock-time">--:--</div>
-                    <div class="status-detail" id="clock-status">Laster...</div>
-                    <div class="time-display" id="clock-details">
-                        <div class="loading">Laster klokke-data...</div>
+                            <!-- Restream Destinations Panel -->
+                    <div class="status-card destinations-card" id="restream-card">
+                        <div class="card-content">
+                            <div class="status-title">Destinasjoner</div>
+                            <div class="card-body">
+                                <div class="destinations" id="restream-destinations">
+                                    <div class="loading">Laster destinasjoner...</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Broadcast Panel -->
         <div class="status-card broadcast-card" id="broadcast-card">
@@ -466,7 +517,7 @@
                 this.baseURL = '/api';
                 // Standard intervaller (vil bli overskrevet av config)
                 this.intervals = {
-                    clock: 1000,      // 1 sekund
+                    restream: 15000,  // 15 sekunder
                     network: 30000,   // 30 sekunder
                     broadcast: 15000, // 15 sekunder
                     quality: 5000,    // 5 sekunder (midlertidig for testing)
@@ -507,50 +558,51 @@
                     const data = await this.fetchData('/config');
                     if (data.success) {
                         this.intervals = data.data.pollingIntervals;
-                        console.log('📊 Konfigurasjon lastet:', this.intervals);
+
                     }
                 } catch (error) {
                     console.warn('⚠️ Kunne ikke laste konfigurasjon, bruker standard intervaller');
                 }
             }
 
-            async updateClock() {
+            async updateRestream() {
                 try {
-                    const data = await this.fetchData('/clock/status');
+                    const data = await this.fetchData('/restream/destinations');
+                    
                     if (data.success) {
-                        const clockData = data.data;
+                        const restreamData = data.data;
                         
-                        // Oppdater hovedklokke
-                        document.getElementById('clock-time').textContent = clockData.localTime;
-                        document.getElementById('clock-status').textContent = clockData.status;
+                        // Oppdater destinasjoner (antall fjernet)
                         
-                        // Oppdater detaljer
-                        const detailsHtml = `
-                            <div class="time-item">
-                                <div class="time-label">Dato</div>
-                                <div class="time-value">${clockData.localDate}</div>
-                            </div>
-                            <div class="time-item">
-                                <div class="time-label">Tidssone</div>
-                                <div class="time-value">${clockData.timezone}</div>
-                            </div>
-                            <div class="time-item">
-                                <div class="time-label">Uptime</div>
-                                <div class="time-value">${Math.floor(clockData.serverUptime / 3600)}t ${Math.floor((clockData.serverUptime % 3600) / 60)}m</div>
-                            </div>
-                        `;
-                        document.getElementById('clock-details').innerHTML = detailsHtml;
+                        // Oppdater destinasjoner
+                        const destinationsContainer = document.getElementById('restream-destinations');
                         
-                        // Oppdater kort-stil basert på status
-                        const clockCard = document.getElementById('clock-card');
-                        clockCard.className = `status-card clock-card clock-${clockData.status.toLowerCase().replace('arbeidstid', 'working').replace('kveld', 'evening').replace('natt', 'night')}`;
+                        if (restreamData.destinations.length > 0) {
+                            const destinationsHtml = restreamData.destinations.map(dest => 
+                                `<div class="destination-tag">${dest.name}</div>`
+                            ).join('');
+                            destinationsContainer.innerHTML = destinationsHtml;
+                            
+                            // Oppdater kort-stil - aktiv hvis destinasjoner finnes
+                            const restreamCard = document.getElementById('restream-card');
+                            restreamCard.className = 'status-card destinations-card destinations-active';
+                        } else {
+                            destinationsContainer.innerHTML = '<div class="destination-tag" style="color: #666; border-color: #666;">Ingen destinasjoner</div>';
+                            
+                            const restreamCard = document.getElementById('restream-card');
+                            restreamCard.className = 'status-card destinations-card destinations-inactive';
+                        }
                     }
                 } catch (error) {
-                    document.getElementById('clock-details').innerHTML = `
+                    console.error('Feil ved oppdatering av destinasjoner:', error);
+                    document.getElementById('restream-destinations').innerHTML = `
                         <div class="error">
-                            <strong>Feil:</strong> Kunne ikke hente klokke-data
+                            <strong>Feil:</strong> Kunne ikke hente destinasjoner
                         </div>
                     `;
+                    
+                    const restreamCard = document.getElementById('restream-card');
+                    restreamCard.className = 'status-card destinations-card destinations-error';
                 }
             }
 
@@ -563,14 +615,8 @@
                         // Oppdater hovedstatus
                         document.getElementById('broadcast-status').textContent = broadcastData.status;
                         
-                        // Oppdater detaljer - kun Stream-rammen
-                        const detailsHtml = `
-                            <div class="time-item">
-                                <div class="time-label">Stream</div>
-                                <div class="time-value">${broadcastData.streamName}</div>
-                            </div>
-                        `;
-                        document.getElementById('broadcast-details').innerHTML = detailsHtml;
+                        // Fjern detaljer - ingen Stream-ramme
+                        document.getElementById('broadcast-details').innerHTML = '';
                         
                         // Oppdater kort-stil basert på broadcast-status
                         const broadcastCard = document.getElementById('broadcast-card');
@@ -588,11 +634,7 @@
                     // Vis feilmelding
                     document.getElementById('broadcast-status').textContent = 'FEIL';
                     
-                    document.getElementById('broadcast-details').innerHTML = `
-                        <div class="error">
-                            <strong>Feil:</strong> Kunne ikke hente broadcast-data
-                        </div>
-                    `;
+                    document.getElementById('broadcast-details').innerHTML = '';
                     
                     const broadcastCard = document.getElementById('broadcast-card');
                     broadcastCard.className = 'status-card broadcast-card broadcast-error';
@@ -601,33 +643,19 @@
 
             async updateQuality() {
                 try {
-                    console.log('🔄 Oppdaterer kvalitetspanel...');
                     const data = await this.fetchData('/quality/network');
-                    console.log('📡 API-respons mottatt:', data);
                     if (data.success) {
                         const qualityData = data.data;
-                        console.log('✅ Kvalitetsdata mottatt:', {
-                            ping: qualityData.ping,
-                            jitter: qualityData.jitter,
-                            quality: qualityData.quality,
-                            cached: qualityData.cached
-                        });
                         
                         // Oppdater hovedstatus
                         const statusElement = document.getElementById('quality-status');
                         const pingElement = document.getElementById('ping-value');
                         const jitterElement = document.getElementById('jitter-value');
                         
-                        console.log('🔧 Oppdaterer DOM-elementer...');
-                        console.log('Elementer funnet:', {
-                            status: !!statusElement,
-                            ping: !!pingElement, 
-                            jitter: !!jitterElement
-                        });
-                        
                         if (statusElement) statusElement.textContent = qualityData.qualityText;
                         if (pingElement) pingElement.textContent = qualityData.ping;
-                        if (jitterElement) jitterElement.textContent = qualityData.jitter;
+                        // Vis glidende gjennomsnitt som brukes for kvalitetsvurdering
+                        if (jitterElement) jitterElement.textContent = qualityData.slidingJitter || qualityData.jitter;
                         
                         // Oppdater farger på metrikker
                         const color = qualityData.qualityColor;
@@ -655,7 +683,7 @@
                 } catch (error) {
                     // Vis feilmelding
                     console.error('❌ Feil ved oppdatering av kvalitetspanel:', error);
-                    console.log('🔄 Kvalitetspanel vil prøve igjen ved neste intervall...');
+                    
                     document.getElementById('quality-status').textContent = 'FEIL';
                     document.getElementById('ping-value').textContent = '--';
                     document.getElementById('jitter-value').textContent = '--';
@@ -686,7 +714,7 @@
                                 <div class="time-value">${networkData.isp}</div>
                             </div>
                         `;
-                        console.log('🔧 Oppdaterer network-details med:', detailsHtml);
+    
                         document.getElementById('network-details').innerHTML = detailsHtml;
                         
                         // Oppdater kort-stil basert på tilkoblingstype og status
@@ -722,26 +750,17 @@
 
             startUpdates() {
                 // Start umiddelbare oppdateringer
-                this.updateClock();
+                this.updateRestream();
                 this.updateBroadcast();
                 this.updateQuality();
                 this.updateNetwork();
                 
                 // Start separate polling-intervaller
-                this.timers.clock = setInterval(() => this.updateClock(), this.intervals.clock);
+                this.timers.restream = setInterval(() => this.updateRestream(), this.intervals.restream);
                 this.timers.broadcast = setInterval(() => this.updateBroadcast(), this.intervals.broadcast);
                 this.timers.quality = setInterval(() => this.updateQuality(), this.intervals.quality);
                 this.timers.network = setInterval(() => this.updateNetwork(), this.intervals.network);
-                
-                console.log('🔄 Polling startet med intervaller:', {
-                    clock: `${this.intervals.clock/1000}s`,
-                    broadcast: `${this.intervals.broadcast/1000}s`,
-                    network: `${this.intervals.network/1000}s`,
-                    quality: `${this.intervals.quality/1000}s`
-                });
-                
-                // Log at kvalitets-timer er satt opp
-                console.log('⏰ Kvalitets-timer satt opp:', this.timers.quality ? 'OK' : 'FEIL');
+
             }
 
             stopUpdates() {
@@ -752,7 +771,7 @@
                         this.timers[key] = null;
                     }
                 });
-                console.log('⏹️ Polling stoppet');
+
             }
         }
 

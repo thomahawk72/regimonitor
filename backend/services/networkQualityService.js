@@ -241,7 +241,10 @@ class NetworkQualityService {
         }
         // 🟢 UTMERKET kvalitet hvis:
         // Ping < EXCELLENT_MAX ms OG glidende jitter < EXCELLENT_MAX ms
+        // (Dette er standard-verdien satt på linje 214)
         
+
+
         return {
             quality,
             alerts,

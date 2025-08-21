@@ -19,6 +19,7 @@ const clockRoutes = require('./routes/clockRoutes');
 const networkRoutes = require('./routes/networkRoutes');
 const broadcastRoutes = require('./routes/broadcastRoutes');
 const qualityRoutes = require('./routes/qualityRoutes');
+const restreamRoutes = require('./routes/restreamRoutes');
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -45,6 +46,7 @@ app.get('/api/config', (req, res) => {
         network: config.POLLING_INTERVALS.NETWORK * 1000,
         broadcast: config.POLLING_INTERVALS.BROADCAST * 1000,
         quality: config.POLLING_INTERVALS.QUALITY * 1000,
+        restream: config.POLLING_INTERVALS.BROADCAST * 1000, // Samme som broadcast
         system: config.POLLING_INTERVALS.SYSTEM * 1000
       }
     },
@@ -74,6 +76,7 @@ app.use('/api/clock', clockRoutes);
 app.use('/api/network', networkRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/quality', qualityRoutes);
+app.use('/api/restream', restreamRoutes);
 
 // Serve frontend
 app.get('/', (req, res) => {
