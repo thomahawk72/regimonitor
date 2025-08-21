@@ -1,8 +1,34 @@
 # RegiMonitor 📊
 
-**Sanntids streaming og nettverksovervåking for RTMP broadcast**
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/your-username/regimonitor)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](https://github.com/your-username/regimonitor)
+
+**🎥 Sanntids streaming og nettverksovervåking for RTMP broadcast**
 
 RegiMonitor er et komplett overvåkingssystem som gir deg full kontroll over streaming-kvalitet, nettverksstatus og re-stream destinasjoner. Perfekt for live streaming, broadcast og video-produksjon.
+
+> **💡 Utviklet for profesjonelle streaming-miljøer** - Overvåk nettverkskvalitet, broadcast-status og re-stream destinasjoner i sanntid med et elegant dashboard.
+
+## 📸 Screenshot
+
+![RegiMonitor Dashboard](docs/screenshot-dashboard.png)
+*RegiMonitor Dashboard med 4 sanntidspaneler: Destinasjoner, Broadcast, Kvalitet og Nettverk*
+
+## 📋 Innholdsfortegnelse
+
+- [Hovedfunksjoner](#-hovedfunksjoner)
+- [Arkitektur](#️-arkitektur)
+- [Kom i gang](#-kom-i-gang)
+- [Dashboard-paneler](#-dashboard-paneler)
+- [Konfigurasjon](#️-konfigurasjon)
+- [API-endepunkter](#-api-endepunkter)
+- [Dokumentasjon](#-dokumentasjon)
+- [Systemkrav](#-systemkrav)
+- [Deployment](#-deployment)
+- [Bidrag](#-bidrag)
+- [Support](#-support)
 
 ## ✨ Hovedfunksjoner
 
@@ -238,38 +264,90 @@ ps aux | grep node
 
 ## 🚀 Deployment
 
-### Docker
+### 🐳 Docker (Anbefalt)
 ```bash
+# Bygg image
 docker build -t regimonitor .
-docker run -p 3000:3000 --env-file .env regimonitor
+
+# Kjør med docker-compose
+docker-compose up -d
+
+# Eller kjør direkte
+docker run -d \
+  --name regimonitor \
+  -p 3000:3000 \
+  --env-file .env \
+  --restart unless-stopped \
+  regimonitor
 ```
 
-### Systemd (Linux)
+### 🐧 Linux (Systemd)
 ```bash
-sudo cp regimonitor.service /etc/systemd/system/
+# Installer som system service
+sudo cp scripts/regimonitor.service /etc/systemd/system/
+sudo systemctl daemon-reload
 sudo systemctl enable regimonitor
 sudo systemctl start regimonitor
+
+# Sjekk status
+sudo systemctl status regimonitor
 ```
 
-### PM2 (Process Manager)
+### ⚡ PM2 (Process Manager)
 ```bash
+# Global installasjon
 npm install -g pm2
-pm2 start ecosystem.config.js
+
+# Start med PM2
+pm2 start ecosystem.config.js --name regimonitor
+
+# Setup auto-start
 pm2 startup
 pm2 save
+
+# Monitoring
+pm2 monit
 ```
+
+### ☁️ Cloud Deployment
+- **Heroku**: Ready-to-deploy med `Procfile`
+- **DigitalOcean**: One-click deploy via App Platform
+- **AWS**: EC2 eller Elastic Beanstalk
+- **Vercel**: Frontend + Serverless functions
 
 ## 🤝 Bidrag
 
-Vi ønsker bidrag! Se [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Vi ønsker bidrag! 🎉 
 
-### Utviklingsoppsett
+[![Contributors](https://img.shields.io/github/contributors/your-username/regimonitor.svg)](https://github.com/your-username/regimonitor/graphs/contributors)
+[![Issues](https://img.shields.io/github/issues/your-username/regimonitor.svg)](https://github.com/your-username/regimonitor/issues)
+[![Pull Requests](https://img.shields.io/github/issues-pr/your-username/regimonitor.svg)](https://github.com/your-username/regimonitor/pulls)
+
+Se [CONTRIBUTING.md](CONTRIBUTING.md) for detaljerte guidelines.
+
+### 🛠️ Utviklingsoppsett
 ```bash
+# Fork og klon repository
 git clone https://github.com/your-username/regimonitor.git
 cd regimonitor
+
+# Installer avhengigheter
 npm run install:all
+
+# Start i utviklingsmodus
 npm run dev
+
+# Kjør tester (når implementert)
+npm test
 ```
+
+### 🔧 Bidragsområder
+- 🐛 **Bug fixes** - Rapporter eller fiks bugs
+- ✨ **Features** - Foreslå eller implementer nye funksjoner
+- 📚 **Dokumentasjon** - Forbedre docs og guides
+- 🧪 **Testing** - Skriv tester for bedre kodekvalitet
+- 🎨 **Design** - Forbedre UI/UX og styling
+- 🌐 **Oversettelser** - Legg til støtte for flere språk
 
 ## 📄 Lisens
 
