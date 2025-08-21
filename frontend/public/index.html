@@ -267,8 +267,19 @@
             box-shadow: 0 15px 40px rgba(255, 170, 0, 0.3);
         }
         .quality-poor {
+            border-color: #ff8800;
+            box-shadow: 0 15px 40px rgba(255, 136, 0, 0.3);
+        }
+        .quality-critical {
             border-color: #ff4444;
             box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3);
+            animation: criticalAlert 1s infinite;
+        }
+        
+        @keyframes criticalAlert {
+            0% { box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3); }
+            50% { box-shadow: 0 15px 40px rgba(255, 68, 68, 0.8); }
+            100% { box-shadow: 0 15px 40px rgba(255, 68, 68, 0.3); }
         }
 
         @keyframes redAlert {
@@ -458,21 +469,35 @@
                     clock: 1000,      // 1 sekund
                     network: 30000,   // 30 sekunder
                     broadcast: 15000, // 15 sekunder
-                    quality: 30000,   // 30 sekunder
+                    quality: 5000,    // 5 sekunder (midlertidig for testing)
                     system: 60000     // 60 sekunder
                 };
                 this.timers = {}; // Holder styr på alle timers
             }
 
-            async fetchData(endpoint) {
+            async fetchData(endpoint, retries = 0) {
                 try {
-                    const response = await fetch(`${this.baseURL}${endpoint}`);
+                    const response = await fetch(`${this.baseURL}${endpoint}`, {
+                        cache: 'no-cache',
+                        headers: {
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
+                        }
+                    });
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return await response.json();
                 } catch (error) {
                     console.error(`Error fetching ${endpoint}:`, error);
+                    
+                    // Retry logic for initial load issues
+                    if (retries < 3) {
+                        console.log(`🔄 Prøver igjen (${retries + 1}/3) for ${endpoint}...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return this.fetchData(endpoint, retries + 1);
+                    }
+                    
                     throw error;
                 }
             }
@@ -576,16 +601,33 @@
 
             async updateQuality() {
                 try {
+                    console.log('🔄 Oppdaterer kvalitetspanel...');
                     const data = await this.fetchData('/quality/network');
+                    console.log('📡 API-respons mottatt:', data);
                     if (data.success) {
                         const qualityData = data.data;
+                        console.log('✅ Kvalitetsdata mottatt:', {
+                            ping: qualityData.ping,
+                            jitter: qualityData.jitter,
+                            quality: qualityData.quality,
+                            cached: qualityData.cached
+                        });
                         
                         // Oppdater hovedstatus
-                        document.getElementById('quality-status').textContent = qualityData.qualityText;
+                        const statusElement = document.getElementById('quality-status');
+                        const pingElement = document.getElementById('ping-value');
+                        const jitterElement = document.getElementById('jitter-value');
                         
-                        // Oppdater metrikker
-                        document.getElementById('ping-value').textContent = qualityData.ping;
-                        document.getElementById('jitter-value').textContent = qualityData.jitter;
+                        console.log('🔧 Oppdaterer DOM-elementer...');
+                        console.log('Elementer funnet:', {
+                            status: !!statusElement,
+                            ping: !!pingElement, 
+                            jitter: !!jitterElement
+                        });
+                        
+                        if (statusElement) statusElement.textContent = qualityData.qualityText;
+                        if (pingElement) pingElement.textContent = qualityData.ping;
+                        if (jitterElement) jitterElement.textContent = qualityData.jitter;
                         
                         // Oppdater farger på metrikker
                         const color = qualityData.qualityColor;
@@ -596,7 +638,9 @@
                         const lights = document.querySelectorAll('.light');
                         lights.forEach(light => light.classList.remove('active'));
                         
-                        if (qualityData.quality === 'poor') {
+                        if (qualityData.quality === 'critical') {
+                            document.getElementById('red-light').classList.add('active');
+                        } else if (qualityData.quality === 'poor') {
                             document.getElementById('red-light').classList.add('active');
                         } else if (qualityData.quality === 'good') {
                             document.getElementById('yellow-light').classList.add('active');
@@ -610,12 +654,14 @@
                     }
                 } catch (error) {
                     // Vis feilmelding
+                    console.error('❌ Feil ved oppdatering av kvalitetspanel:', error);
+                    console.log('🔄 Kvalitetspanel vil prøve igjen ved neste intervall...');
                     document.getElementById('quality-status').textContent = 'FEIL';
                     document.getElementById('ping-value').textContent = '--';
                     document.getElementById('jitter-value').textContent = '--';
                     
                     const qualityCard = document.getElementById('quality-card');
-                    qualityCard.className = 'status-card quality-card quality-poor';
+                    qualityCard.className = 'status-card quality-card quality-critical';
                     
                     // Aktiver rødt lys ved feil
                     const lights = document.querySelectorAll('.light');
@@ -693,6 +739,9 @@
                     network: `${this.intervals.network/1000}s`,
                     quality: `${this.intervals.quality/1000}s`
                 });
+                
+                // Log at kvalitets-timer er satt opp
+                console.log('⏰ Kvalitets-timer satt opp:', this.timers.quality ? 'OK' : 'FEIL');
             }
 
             stopUpdates() {

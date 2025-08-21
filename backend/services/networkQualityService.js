@@ -1,53 +1,137 @@
 const config = require('../config/config');
 const https = require('https');
 const { performance } = require('perf_hooks');
+const ping = require('ping');
 
 class NetworkQualityService {
     constructor() {
-        // Bruk api.video servere for testing
-        this.testServers = {
-            sandbox: 'sandbox.api.video',
-            production: 'ws.api.video'
-        };
         this.lastQuality = null;
         this.lastCheck = null;
         this.cacheTimeout = 10000; // 10 sekunder cache
+        
+        // Avansert overvåking - glidende gjennomsnitt og consecutive tracking
+        this.pingHistory = []; // Lagrer ping-verdier med timestamp
+        this.jitterHistory = []; // Lagrer jitter-verdier for glidende gjennomsnitt
+        this.consecutiveHighPing = 0; // Teller consecutive high ping
+        this.consecutiveHighJitter = 0; // Teller consecutive high jitter
+        this.lastPingCheck = null;
+        
+        // Log konfigurerte terskelverdier ved oppstart
+        this.logQualityThresholds();
+    }
+    
+    logQualityThresholds() {
+        const thresholds = config.QUALITY_THRESHOLDS;
+        const monitoring = config.QUALITY_MONITORING;
+        const server = config.PING_SERVER;
+        console.log('📊 Kvalitetsterskler konfigurert:');
+        console.log(`   🟢 UTMERKET: Ping < ${thresholds.PING.EXCELLENT_MAX}ms, Jitter < ${thresholds.JITTER.EXCELLENT_MAX}ms`);
+        console.log(`   🟡 BRA:      Ping ${thresholds.PING.EXCELLENT_MAX}-${thresholds.PING.GOOD_MAX}ms, Jitter ${thresholds.JITTER.EXCELLENT_MAX}-${thresholds.JITTER.GOOD_MAX}ms`);
+        console.log(`   🟠 DÅRLIG:   Ping ${thresholds.PING.GOOD_MAX}-${thresholds.PING.POOR_MAX}ms, Jitter ${thresholds.JITTER.GOOD_MAX}-${thresholds.JITTER.POOR_MAX}ms`);
+        console.log(`   🔴 KRITISK:  Ping > ${thresholds.PING.POOR_MAX}ms, Jitter > ${thresholds.JITTER.POOR_MAX}ms`);
+        console.log('📈 Avanserte innstillinger:');
+        console.log(`   🕐 Ping-intervall: ${monitoring.PING_INTERVAL_SECONDS}s`);
+        console.log(`   📊 Jitter-vindu: ${monitoring.JITTER_WINDOW_SECONDS}s (glidende gjennomsnitt)`);
+        console.log(`   ⚠️  Consecutive terskler: ${monitoring.CONSECUTIVE_THRESHOLD_COUNT} påfølgende overskridelser`);
+        console.log(`   🌐 ICMP Ping-server: ${server} (ekte nettverkslatens)`);
+    }
+    
+    // Legg til ping-verdi til historikk og beregn consecutive
+    addPingToHistory(ping, timestamp = Date.now()) {
+        const monitoring = config.QUALITY_MONITORING;
+        const thresholds = config.QUALITY_THRESHOLDS;
+        
+        // Legg til ny ping-verdi
+        this.pingHistory.push({ value: ping, timestamp });
+        
+        // Fjern gamle verdier (behold kun siste 10 målinger for consecutive tracking)
+        this.pingHistory = this.pingHistory.slice(-10);
+        
+        // Sjekk consecutive high ping
+        if (ping > thresholds.PING.POOR_MAX) {
+            this.consecutiveHighPing++;
+        } else {
+            this.consecutiveHighPing = 0;
+        }
+        
+        return {
+            isConsecutiveAlert: this.consecutiveHighPing >= monitoring.CONSECUTIVE_THRESHOLD_COUNT,
+            consecutiveCount: this.consecutiveHighPing
+        };
+    }
+    
+    // Legg til jitter-verdi til glidende gjennomsnitt
+    addJitterToHistory(jitter, timestamp = Date.now()) {
+        const monitoring = config.QUALITY_MONITORING;
+        const windowMs = monitoring.JITTER_WINDOW_SECONDS * 1000;
+        
+        // Legg til ny jitter-verdi
+        this.jitterHistory.push({ value: jitter, timestamp });
+        
+        // Fjern verdier eldre enn vinduet
+        const cutoff = timestamp - windowMs;
+        this.jitterHistory = this.jitterHistory.filter(entry => entry.timestamp > cutoff);
+        
+        // Beregn glidende gjennomsnitt
+        const slidingAverage = this.jitterHistory.length > 0
+            ? this.jitterHistory.reduce((sum, entry) => sum + entry.value, 0) / this.jitterHistory.length
+            : jitter;
+        
+        return {
+            currentJitter: jitter,
+            slidingAverage: Math.round(slidingAverage * 100) / 100,
+            sampleCount: this.jitterHistory.length
+        };
+    }
+    
+    // Sjekk om det er tid for ny ping-måling (basert på konfigurerbart intervall)
+    shouldMeasurePing() {
+        const monitoring = config.QUALITY_MONITORING;
+        const intervalMs = monitoring.PING_INTERVAL_SECONDS * 1000;
+        
+        if (!this.lastPingCheck) {
+            this.lastPingCheck = Date.now();
+            return true;
+        }
+        
+        const timeSinceLastCheck = Date.now() - this.lastPingCheck;
+        if (timeSinceLastCheck >= intervalMs) {
+            this.lastPingCheck = Date.now();
+            return true;
+        }
+        
+        return false;
     }
 
     async measurePing(hostname) {
-        return new Promise((resolve, reject) => {
-            const start = performance.now();
-            
-            const req = https.request({
-                hostname: hostname,
-                port: 443,
-                path: '/',
-                method: 'HEAD',
-                timeout: 5000
-            }, (res) => {
-                const end = performance.now();
-                const ping = Math.round(end - start);
-                resolve(ping);
-            });
-
-            req.on('error', (error) => {
-                reject(new Error(`Ping feilet: ${error.message}`));
-            });
-
-            req.on('timeout', () => {
-                req.destroy();
-                reject(new Error('Ping timeout'));
-            });
-
-            req.end();
-        });
-    }
-
-    async measureJitter(hostname, samples = 5) {
         try {
+            // Bruk ICMP ping for ekte nettverkslatens
+            const res = await ping.promise.probe(hostname, {
+                timeout: 5,
+                extra: ['-c', '1'], // Send kun 1 pakke
+            });
+            
+            if (res.alive) {
+                // Konverter til millisekunder og rund av
+                const pingTime = parseFloat(res.time);
+                return Math.round(pingTime);
+            } else {
+                throw new Error(`Host ${hostname} er ikke tilgjengelig`);
+            }
+        } catch (error) {
+            throw new Error(`ICMP ping til ${hostname} feilet: ${error.message}`);
+        }
+    }
+    
+
+
+    async measureJitter(hostname) {
+        try {
+            const monitoring = config.QUALITY_MONITORING;
+            const samples = monitoring.JITTER_SAMPLES_PER_MEASUREMENT;
             const pings = [];
             
-            // Utfør flere ping-målinger
+            // Utfør flere ping-målinger mot samme server
             for (let i = 0; i < samples; i++) {
                 const ping = await this.measurePing(hostname);
                 pings.push(ping);
@@ -66,10 +150,11 @@ class NetworkQualityService {
             return {
                 averagePing: Math.round(avgPing),
                 jitter: Math.round(jitter * 100) / 100,
-                samples: pings
+                samples: pings,
+                server: hostname
             };
         } catch (error) {
-            throw new Error(`Jitter-måling feilet: ${error.message}`);
+            throw new Error(`Jitter-måling til ${hostname} feilet: ${error.message}`);
         }
     }
 
@@ -113,43 +198,86 @@ class NetworkQualityService {
         });
     }
 
-    determineQuality(ping, jitter) {
-        // Kvalitetsvurdering basert på ping og jitter (uten bitrate)
-        let quality = 'excellent';
+    determineQuality(ping, jitter, options = {}) {
+        // Hent konfigurerbare terskelverdier fra config
+        const thresholds = config.QUALITY_THRESHOLDS;
+        const timestamp = Date.now();
         
-        // 🔴 Rød kvalitet hvis:
-        // Ping > 100 ms ELLER Jitter > 50 ms
-        if (ping > 100 || jitter > 50) {
+        // Legg til verdier til historikk og få tilbake analyse
+        const pingAnalysis = this.addPingToHistory(ping, timestamp);
+        const jitterAnalysis = this.addJitterToHistory(jitter, timestamp);
+        
+        // Bruk glidende gjennomsnitt for jitter-evaluering
+        const effectiveJitter = jitterAnalysis.slidingAverage;
+        
+        // Kvalitetsvurdering basert på ping og glidende jitter
+        let quality = 'excellent';
+        let alerts = [];
+        
+        // Sjekk for consecutive ping-problemer
+        if (pingAnalysis.isConsecutiveAlert) {
+            alerts.push(`⚠️ ${pingAnalysis.consecutiveCount} påfølgende høye ping-verdier`);
+        }
+        
+        // 🔴 KRITISK kvalitet hvis:
+        // Ping > POOR_MAX ms ELLER glidende jitter > POOR_MAX ms
+        // ELLER consecutive threshold nådd
+        if (ping > thresholds.PING.POOR_MAX || 
+            effectiveJitter > thresholds.JITTER.POOR_MAX ||
+            pingAnalysis.isConsecutiveAlert) {
+            quality = 'critical';
+        }
+        // 🟠 DÅRLIG kvalitet hvis:
+        // Ping GOOD_MAX-POOR_MAX ms ELLER glidende jitter GOOD_MAX-POOR_MAX ms
+        else if ((ping > thresholds.PING.GOOD_MAX && ping <= thresholds.PING.POOR_MAX) || 
+                 (effectiveJitter >= thresholds.JITTER.GOOD_MAX && effectiveJitter <= thresholds.JITTER.POOR_MAX)) {
             quality = 'poor';
         }
-        // 🟡 Gul kvalitet hvis:
-        // Ping 50–100 ms ELLER Jitter 30–50 ms
-        else if ((ping >= 50 && ping <= 100) || (jitter >= 30 && jitter <= 50)) {
+        // 🟡 BRA kvalitet hvis:
+        // Ping EXCELLENT_MAX-GOOD_MAX ms ELLER glidende jitter EXCELLENT_MAX-GOOD_MAX ms
+        else if ((ping >= thresholds.PING.EXCELLENT_MAX && ping <= thresholds.PING.GOOD_MAX) || 
+                 (effectiveJitter >= thresholds.JITTER.EXCELLENT_MAX && effectiveJitter <= thresholds.JITTER.GOOD_MAX)) {
             quality = 'good';
         }
-        // 🟢 Grønn kvalitet hvis:
-        // Ping < 50 ms OG Jitter < 30 ms
-        // (dette er standard hvis ikke de andre kriteriene treffer)
+        // 🟢 UTMERKET kvalitet hvis:
+        // Ping < EXCELLENT_MAX ms OG glidende jitter < EXCELLENT_MAX ms
         
-        return quality;
+        return {
+            quality,
+            alerts,
+            analysis: {
+                ping: {
+                    current: ping,
+                    consecutive: pingAnalysis.consecutiveCount,
+                    isAlert: pingAnalysis.isConsecutiveAlert
+                },
+                jitter: {
+                    current: jitter,
+                    slidingAverage: effectiveJitter,
+                    sampleCount: jitterAnalysis.sampleCount
+                }
+            }
+        };
     }
 
     getQualityColor(quality) {
         const colors = {
-            excellent: '#00ff88',
-            good: '#ffaa00',
-            poor: '#ff4444'
+            excellent: '#00ff88',  // Grønn
+            good: '#ffaa00',       // Gul  
+            poor: '#ff8800',       // Oransje
+            critical: '#ff4444'    // Rød
         };
-        return colors[quality] || colors.poor;
+        return colors[quality] || colors.critical;
     }
 
     getQualityText(quality) {
         const texts = {
             excellent: 'UTMERKET',
             good: 'BRA',
-            poor: 'DÅRLIG'
+            poor: 'DÅRLIG',
+            critical: 'KRITISK'
         };
-        return texts[quality] || texts.poor;
+        return texts[quality] || texts.critical;
     }
 
     async getNetworkQuality() {
@@ -163,26 +291,27 @@ class NetworkQualityService {
                 };
             }
 
-            // Velg server basert på api.video miljø
-            const environment = config.API_VIDEO.ENVIRONMENT;
-            const hostname = this.testServers[environment] || this.testServers.sandbox;
-
-            // Utfør målinger (kun jitter som inkluderer ping)
+            // Utfør målinger mot konfigurert server
+            const hostname = config.PING_SERVER;
             const jitterResult = await this.measureJitter(hostname);
 
             const ping = jitterResult.averagePing;
             const jitter = jitterResult.jitter;
-            const quality = this.determineQuality(ping, jitter);
+            const qualityResult = this.determineQuality(ping, jitter);
 
             const result = {
                 ping: ping,
                 jitter: jitter,
-                quality: quality,
-                qualityText: this.getQualityText(quality),
-                qualityColor: this.getQualityColor(quality),
+                quality: qualityResult.quality,
+                qualityText: this.getQualityText(qualityResult.quality),
+                qualityColor: this.getQualityColor(qualityResult.quality),
                 server: hostname,
-                environment: environment,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                // Legg til avansert analyse-data
+                analysis: qualityResult.analysis,
+                alerts: qualityResult.alerts,
+                // Legg til glidende jitter for frontend
+                slidingJitter: qualityResult.analysis.jitter.slidingAverage
             };
 
             // Cache resultatet
@@ -208,11 +337,10 @@ class NetworkQualityService {
             return {
                 ping: 999,
                 jitter: 999,
-                quality: 'poor',
+                quality: 'critical',
                 qualityText: 'FEIL',
                 qualityColor: '#ff4444',
-                server: 'ukjent',
-                environment: config.API_VIDEO.ENVIRONMENT,
+                server: config.PING_SERVER,
                 error: error.message,
                 timestamp: new Date().toISOString(),
                 cached: false
