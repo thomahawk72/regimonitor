@@ -512,6 +512,62 @@
     </div>
 
     <script>
+        // Hjelpeklasse for DOM-operasjoner og feilhåndtering
+        class DashboardHelpers {
+            static updateElement(elementId, content) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = content;
+                }
+            }
+
+            static updateElementHTML(elementId, html) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.innerHTML = html;
+                }
+            }
+
+            static updateCardClass(cardId, className) {
+                const card = document.getElementById(cardId);
+                if (card) {
+                    card.className = className;
+                }
+            }
+
+            static showError(panelName, statusId, detailsId, cardId, errorMessage) {
+                this.updateElement(statusId, 'FEIL');
+                
+                if (detailsId) {
+                    this.updateElementHTML(detailsId, `
+                        <div class="error">
+                            <strong>Feil:</strong> ${errorMessage}
+                        </div>
+                    `);
+                }
+                
+                this.updateCardClass(cardId, `status-card ${panelName}-card ${panelName}-error`);
+            }
+
+            static updateTrafficLights(quality) {
+                const lights = document.querySelectorAll('.light');
+                lights.forEach(light => light.classList.remove('active'));
+                
+                const lightMap = {
+                    'critical': 'red-light',
+                    'poor': 'red-light', 
+                    'good': 'yellow-light',
+                    'excellent': 'green-light'
+                };
+                
+                const lightId = lightMap[quality] || 'red-light';
+                const lightElement = document.getElementById(lightId);
+                if (lightElement) {
+                    lightElement.classList.add('active');
+                }
+            }
+        }
+
         class DashboardAPI {
             constructor() {
                 this.baseURL = '/api';
@@ -520,8 +576,7 @@
                     restream: 15000,  // 15 sekunder
                     network: 30000,   // 30 sekunder
                     broadcast: 15000, // 15 sekunder
-                    quality: 5000,    // 5 sekunder (midlertidig for testing)
-                    system: 60000     // 60 sekunder
+                    quality: 5000     // 5 sekunder
                 };
                 this.timers = {}; // Holder styr på alle timers
             }
@@ -595,14 +650,7 @@
                     }
                 } catch (error) {
                     console.error('Feil ved oppdatering av destinasjoner:', error);
-                    document.getElementById('restream-destinations').innerHTML = `
-                        <div class="error">
-                            <strong>Feil:</strong> Kunne ikke hente destinasjoner
-                        </div>
-                    `;
-                    
-                    const restreamCard = document.getElementById('restream-card');
-                    restreamCard.className = 'status-card destinations-card destinations-error';
+                    DashboardHelpers.showError('destinations', null, 'restream-destinations', 'restream-card', 'Kunne ikke hente destinasjoner');
                 }
             }
 
@@ -631,13 +679,8 @@
                         broadcastCard.className = `status-card broadcast-card ${cardClass}`;
                     }
                 } catch (error) {
-                    // Vis feilmelding
-                    document.getElementById('broadcast-status').textContent = 'FEIL';
-                    
-                    document.getElementById('broadcast-details').innerHTML = '';
-                    
-                    const broadcastCard = document.getElementById('broadcast-card');
-                    broadcastCard.className = 'status-card broadcast-card broadcast-error';
+                    console.error('Feil ved oppdatering av broadcast:', error);
+                    DashboardHelpers.showError('broadcast', 'broadcast-status', 'broadcast-details', 'broadcast-card', 'Kunne ikke hente broadcast-status');
                 }
             }
 
@@ -647,54 +690,31 @@
                     if (data.success) {
                         const qualityData = data.data;
                         
-                        // Oppdater hovedstatus
-                        const statusElement = document.getElementById('quality-status');
-                        const pingElement = document.getElementById('ping-value');
-                        const jitterElement = document.getElementById('jitter-value');
-                        
-                        if (statusElement) statusElement.textContent = qualityData.qualityText;
-                        if (pingElement) pingElement.textContent = qualityData.ping;
-                        // Vis glidende gjennomsnitt som brukes for kvalitetsvurdering
-                        if (jitterElement) jitterElement.textContent = qualityData.slidingJitter || qualityData.jitter;
+                        // Oppdater hovedstatus og verdier
+                        DashboardHelpers.updateElement('quality-status', qualityData.qualityText);
+                        DashboardHelpers.updateElement('ping-value', qualityData.ping);
+                        DashboardHelpers.updateElement('jitter-value', qualityData.slidingJitter || qualityData.jitter);
                         
                         // Oppdater farger på metrikker
                         const color = qualityData.qualityColor;
-                        document.getElementById('ping-value').style.color = color;
-                        document.getElementById('jitter-value').style.color = color;
+                        const pingEl = document.getElementById('ping-value');
+                        const jitterEl = document.getElementById('jitter-value');
+                        if (pingEl) pingEl.style.color = color;
+                        if (jitterEl) jitterEl.style.color = color;
                         
-                        // Oppdater trafikklys
-                        const lights = document.querySelectorAll('.light');
-                        lights.forEach(light => light.classList.remove('active'));
-                        
-                        if (qualityData.quality === 'critical') {
-                            document.getElementById('red-light').classList.add('active');
-                        } else if (qualityData.quality === 'poor') {
-                            document.getElementById('red-light').classList.add('active');
-                        } else if (qualityData.quality === 'good') {
-                            document.getElementById('yellow-light').classList.add('active');
-                        } else {
-                            document.getElementById('green-light').classList.add('active');
-                        }
-                        
-                        // Oppdater kort-stil
-                        const qualityCard = document.getElementById('quality-card');
-                        qualityCard.className = `status-card quality-card quality-${qualityData.quality}`;
+                        // Oppdater trafikklys og kort-stil
+                        DashboardHelpers.updateTrafficLights(qualityData.quality);
+                        DashboardHelpers.updateCardClass('quality-card', `status-card quality-card quality-${qualityData.quality}`);
                     }
                 } catch (error) {
-                    // Vis feilmelding
-                    console.error('❌ Feil ved oppdatering av kvalitetspanel:', error);
+                    console.error('Feil ved oppdatering av kvalitetspanel:', error);
                     
-                    document.getElementById('quality-status').textContent = 'FEIL';
-                    document.getElementById('ping-value').textContent = '--';
-                    document.getElementById('jitter-value').textContent = '--';
-                    
-                    const qualityCard = document.getElementById('quality-card');
-                    qualityCard.className = 'status-card quality-card quality-critical';
-                    
-                    // Aktiver rødt lys ved feil
-                    const lights = document.querySelectorAll('.light');
-                    lights.forEach(light => light.classList.remove('active'));
-                    document.getElementById('red-light').classList.add('active');
+                    // Vis feilstatus
+                    DashboardHelpers.updateElement('quality-status', 'FEIL');
+                    DashboardHelpers.updateElement('ping-value', '--');
+                    DashboardHelpers.updateElement('jitter-value', '--');
+                    DashboardHelpers.updateCardClass('quality-card', 'status-card quality-card quality-critical');
+                    DashboardHelpers.updateTrafficLights('critical');
                 }
             }
 
@@ -734,17 +754,8 @@
                         networkCard.className = `status-card network-card ${cardClass}`;
                     }
                 } catch (error) {
-                    // Vis feilmelding
-                    document.getElementById('network-status').textContent = 'FEIL';
-                    
-                    document.getElementById('network-details').innerHTML = `
-                        <div class="error">
-                            <strong>Feil:</strong> Kunne ikke hente nettverksdata
-                        </div>
-                    `;
-                    
-                    const networkCard = document.getElementById('network-card');
-                    networkCard.className = 'status-card network-card network-error';
+                    console.error('Feil ved oppdatering av nettverk:', error);
+                    DashboardHelpers.showError('network', 'network-status', 'network-details', 'network-card', 'Kunne ikke hente nettverksdata');
                 }
             }
 

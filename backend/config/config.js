@@ -1,4 +1,26 @@
 // Konfigurasjon for RegiMonitor backend
+
+// Valider kritiske miljøvariabler
+function validateEnvironment() {
+    const required = ['PORT'];
+    const missing = required.filter(key => !process.env[key]);
+    
+    if (missing.length > 0) {
+        console.warn(`⚠️ Manglende miljøvariabler: ${missing.join(', ')}`);
+        console.warn('💡 Bruker fallback-verdier. Se .env.example for konfigurasjonsalternativer.');
+    }
+    
+    // Valider PORT
+    const port = parseInt(process.env.PORT) || 3000;
+    if (port < 1024 || port > 65535) {
+        console.warn(`⚠️ Ugyldig PORT: ${port}. Bruker standard: 3000`);
+        process.env.PORT = '3000';
+    }
+}
+
+// Kjør validering
+validateEnvironment();
+
 module.exports = {
     // ISP-liste for 5G-operatører
     ISP_LIST: [
@@ -13,20 +35,18 @@ module.exports = {
     ],
     
     // Server konfigurasjon
-    PORT: process.env.PORT,
-    NODE_ENV: process.env.NODE_ENV,
+    PORT: parseInt(process.env.PORT) || 3000,
+    NODE_ENV: process.env.NODE_ENV || 'development',
     
     // Polling intervaller (i sekunder) - alle fra .env
     POLLING_INTERVALS: {
-        CLOCK: process.env.CLOCK_INTERVAL,
-        NETWORK: process.env.NETWORK_INTERVAL,
-        BROADCAST: process.env.BROADCAST_INTERVAL,
-        QUALITY: process.env.QUALITY_INTERVAL,
-        SYSTEM: process.env.SYSTEM_INTERVAL
+        NETWORK: parseInt(process.env.NETWORK_INTERVAL) || 30,
+        BROADCAST: parseInt(process.env.BROADCAST_INTERVAL) || 15,
+        QUALITY: parseInt(process.env.QUALITY_INTERVAL) || 5
     },
     
     // Eksterne API-er
-    IP_API_URL: process.env.IP_API_URL,
+    IP_API_URL: process.env.IP_API_URL || 'http://ip-api.com/json',
     
     // Quality Thresholds (Kvalitetsterskler)
     QUALITY_THRESHOLDS: {

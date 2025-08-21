@@ -21,19 +21,11 @@ class NetworkQualityService {
     }
     
     logQualityThresholds() {
-        const thresholds = config.QUALITY_THRESHOLDS;
-        const monitoring = config.QUALITY_MONITORING;
-        const server = config.PING_SERVER;
-        console.log('📊 Kvalitetsterskler konfigurert:');
-        console.log(`   🟢 UTMERKET: Ping < ${thresholds.PING.EXCELLENT_MAX}ms, Jitter < ${thresholds.JITTER.EXCELLENT_MAX}ms`);
-        console.log(`   🟡 BRA:      Ping ${thresholds.PING.EXCELLENT_MAX}-${thresholds.PING.GOOD_MAX}ms, Jitter ${thresholds.JITTER.EXCELLENT_MAX}-${thresholds.JITTER.GOOD_MAX}ms`);
-        console.log(`   🟠 DÅRLIG:   Ping ${thresholds.PING.GOOD_MAX}-${thresholds.PING.POOR_MAX}ms, Jitter ${thresholds.JITTER.GOOD_MAX}-${thresholds.JITTER.POOR_MAX}ms`);
-        console.log(`   🔴 KRITISK:  Ping > ${thresholds.PING.POOR_MAX}ms, Jitter > ${thresholds.JITTER.POOR_MAX}ms`);
-        console.log('📈 Avanserte innstillinger:');
-        console.log(`   🕐 Ping-intervall: ${monitoring.PING_INTERVAL_SECONDS}s`);
-        console.log(`   📊 Jitter-vindu: ${monitoring.JITTER_WINDOW_SECONDS}s (glidende gjennomsnitt)`);
-        console.log(`   ⚠️  Consecutive terskler: ${monitoring.CONSECUTIVE_THRESHOLD_COUNT} påfølgende overskridelser`);
-        console.log(`   🌐 ICMP Ping-server: ${server} (ekte nettverkslatens)`);
+        // Minimal logging - kun ved debug
+        if (process.env.DEBUG) {
+            const server = config.PING_SERVER;
+            console.log(`Kvalitetsmåling: ICMP ping til ${server}`);
+        }
     }
     
     // Legg til ping-verdi til historikk og beregn consecutive

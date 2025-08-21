@@ -15,7 +15,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend/public')));
 
 // Import routes
-const clockRoutes = require('./routes/clockRoutes');
 const networkRoutes = require('./routes/networkRoutes');
 const broadcastRoutes = require('./routes/broadcastRoutes');
 const qualityRoutes = require('./routes/qualityRoutes');
@@ -42,12 +41,10 @@ app.get('/api/config', (req, res) => {
     success: true,
     data: {
       pollingIntervals: {
-        clock: config.POLLING_INTERVALS.CLOCK * 1000,      // Konverter til millisekunder
         network: config.POLLING_INTERVALS.NETWORK * 1000,
         broadcast: config.POLLING_INTERVALS.BROADCAST * 1000,
         quality: config.POLLING_INTERVALS.QUALITY * 1000,
-        restream: config.POLLING_INTERVALS.BROADCAST * 1000, // Samme som broadcast
-        system: config.POLLING_INTERVALS.SYSTEM * 1000
+        restream: config.POLLING_INTERVALS.BROADCAST * 1000 // Samme som broadcast
       }
     },
     message: 'Konfigurasjon hentet'
@@ -61,10 +58,10 @@ app.get('/api', (req, res) => {
     version: '1.0.0',
           endpoints: {
         health: '/api/health',
-        clock: '/api/clock',
         network: '/api/network',
         broadcast: '/api/broadcast',
         quality: '/api/quality',
+        restream: '/api/restream',
         config: '/api/config',
         root: '/api'
       }
@@ -72,7 +69,6 @@ app.get('/api', (req, res) => {
 });
 
 // Use routes
-app.use('/api/clock', clockRoutes);
 app.use('/api/network', networkRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/quality', qualityRoutes);
@@ -86,6 +82,5 @@ app.get('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 RegiMonitor server kjører på port ${PORT}`);
-  console.log(`📊 Health endpoint: http://localhost:${PORT}/api/health`);
-  console.log(`🌐 Frontend: http://localhost:${PORT}`);
+  console.log(`📊 Dashboard: http://localhost:${PORT}`);
 }); 
