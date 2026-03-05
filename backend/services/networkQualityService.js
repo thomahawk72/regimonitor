@@ -2,6 +2,8 @@ const config = require('../config/config');
 const https = require('https');
 const { performance } = require('perf_hooks');
 const ping = require('ping');
+const networkService = require('./networkService');
+const webhookService = require('./webhookService');
 
 class NetworkQualityService {
     constructor() {
@@ -308,6 +310,30 @@ class NetworkQualityService {
                 // Legg til glidende jitter for frontend
                 slidingJitter: qualityResult.analysis.jitter.slidingAverage
             };
+
+            // Hent nettverksinfo for connectionType til webhook-kall
+            let connectionType = null;
+            try {
+                const networkInfo = await networkService.getNetworkInfo();
+                connectionType = networkInfo.connectionType || null;
+            } catch (networkError) {
+                console.warn('Kunne ikke hente nettverksinfo for webhook-metrikk:', networkError.message || networkError);
+            }
+
+            // Kall webhook med nettverksmetrikk, men aldri raskere enn konfigurerte intervaller
+            try {
+                const payload = {
+                    jitter,
+                    ping,
+                    connectionType,
+                    quality: qualityResult.quality,
+                    timestamp: result.timestamp
+                };
+
+                await webhookService.sendMetrics(payload);
+            } catch (webhookError) {
+                console.warn('Webhook for nettverksmetrikk feilet:', webhookError.message || webhookError);
+            }
 
             // Cache resultatet
             this.lastQuality = result;

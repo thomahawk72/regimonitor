@@ -91,5 +91,12 @@ module.exports = {
                 ? 'https://ws.api.video' 
                 : 'https://sandbox.api.video';
         }
+    },
+
+    // Webhook-konfigurasjon for nettverksmetrikk
+    WEBHOOK_METRICS: {
+        URL: process.env.WEBHOOK_METRICS_URL || null,
+        API_KEY: process.env.WEBHOOK_METRICS_API_KEY || null,
+        MIN_INTERVAL_MS: parseInt(process.env.WEBHOOK_METRICS_MIN_INTERVAL_MS) || 7000
     }
 };
