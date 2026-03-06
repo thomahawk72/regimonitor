@@ -33,6 +33,7 @@ class WebhookService {
 
     async sendMetrics(payload) {
         if (!this.canSendMetrics()) {
+            console.warn('Webhook metrics ikke sendt (manglende config eller rate-limit).');
             return {
                 success: false,
                 skipped: true,
@@ -66,9 +67,27 @@ class WebhookService {
 
             await new Promise((resolve, reject) => {
                 const req = client.request(options, (res) => {
-                    // Tøm response-body for å unngå memory-leaks
-                    res.on('data', () => {});
-                    res.on('end', () => resolve());
+                    let body = '';
+
+                    res.on('data', (chunk) => {
+                        body += chunk.toString();
+                    });
+
+                    res.on('end', () => {
+                        if (res.statusCode && res.statusCode >= 400) {
+                            console.warn(
+                                'Webhook metrics svarte med feilstatus:',
+                                res.statusCode,
+                                body || '<tom body>'
+                            );
+                        } else {
+                            console.log(
+                                'Webhook metrics sendt OK med status:',
+                                res.statusCode
+                            );
+                        }
+                        resolve();
+                    });
                 });
 
                 req.on('error', (error) => {

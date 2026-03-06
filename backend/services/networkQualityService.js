@@ -307,7 +307,6 @@ class NetworkQualityService {
                 // Legg til avansert analyse-data
                 analysis: qualityResult.analysis,
                 alerts: qualityResult.alerts,
-                // Legg til glidende jitter for frontend
                 slidingJitter: qualityResult.analysis.jitter.slidingAverage
             };
 

@@ -22,26 +22,17 @@ function validateEnvironment() {
 validateEnvironment();
 
 module.exports = {
-    // ISP-liste for 5G-operatører
-    ISP_LIST: [
-        'Telenor Mobil',
-        'Telia', 
-        'Ice',
-        'Altibox AS',
-        'OneCall',
-        'Chilimobil',
-        'TalkMore',
-        'Phonero'
-    ],
+    // ISP-liste for 5G-operatører (kommaseparert i .env under ISP)
+    ISP_LIST: process.env.ISP
+        ? process.env.ISP.split(',').map(s => s.trim()).filter(Boolean)
+        : ['Telenor Mobil', 'Telia', 'Ice', 'Altibox AS', 'OneCall', 'Chilimobil', 'TalkMore', 'Phonero'],
     
     // Server konfigurasjon
     PORT: parseInt(process.env.PORT) || 3000,
     NODE_ENV: process.env.NODE_ENV || 'development',
     
-    // Polling intervaller (i sekunder) - alle fra .env
+    // Intervall for datainnsamling og webhook (sekunder)
     POLLING_INTERVALS: {
-        NETWORK: parseInt(process.env.NETWORK_INTERVAL) || 30,
-        BROADCAST: parseInt(process.env.BROADCAST_INTERVAL) || 15,
         QUALITY: parseInt(process.env.QUALITY_INTERVAL) || 5
     },
     
@@ -70,28 +61,8 @@ module.exports = {
         JITTER_SAMPLES_PER_MEASUREMENT: parseInt(process.env.QUALITY_JITTER_SAMPLES_PER_MEASUREMENT) || 5
     },
     
-    // Ping Server Configuration - Standard til api.video for streaming-relevante målinger
-    PING_SERVER: process.env.QUALITY_PING_SERVER || 'sandbox.api.video',
-    
-    // api.video konfigurasjon
-    API_VIDEO: {
-        API_KEY: process.env.API_VIDEO_API_KEY,
-        STREAM_ID: process.env.API_VIDEO_STREAM_ID,
-        // Auto-detect environment basert på API-nøkkel, eller bruk eksplisitt setting
-        get ENVIRONMENT() {
-            if (process.env.API_VIDEO_ENVIRONMENT) {
-                return process.env.API_VIDEO_ENVIRONMENT;
-            }
-            // Auto-detect: Production API-nøkler starter vanligvis annerledes enn sandbox
-            // For nå, default til sandbox hvis ikke spesifisert
-            return 'sandbox';
-        },
-        get BASE_URL() {
-            return this.ENVIRONMENT === 'production' 
-                ? 'https://ws.api.video' 
-                : 'https://sandbox.api.video';
-        }
-    },
+    // Ping-server for nettverksmåling
+    PING_SERVER: process.env.QUALITY_PING_SERVER || 'google.com',
 
     // Webhook-konfigurasjon for nettverksmetrikk
     WEBHOOK_METRICS: {
