@@ -53,9 +53,8 @@ module.exports = {
         }
     },
     
-    // Advanced Quality Monitoring Settings
+    // Kvalitetsmåling (jitter, consecutive alerts)
     QUALITY_MONITORING: {
-        PING_INTERVAL_SECONDS: parseInt(process.env.QUALITY_PING_INTERVAL_SECONDS) || 5,
         JITTER_WINDOW_SECONDS: parseInt(process.env.QUALITY_JITTER_WINDOW_SECONDS) || 45,
         CONSECUTIVE_THRESHOLD_COUNT: parseInt(process.env.QUALITY_CONSECUTIVE_THRESHOLD_COUNT) || 3,
         JITTER_SAMPLES_PER_MEASUREMENT: parseInt(process.env.QUALITY_JITTER_SAMPLES_PER_MEASUREMENT) || 5

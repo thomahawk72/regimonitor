@@ -16,7 +16,6 @@ class NetworkQualityService {
         this.jitterHistory = []; // Lagrer jitter-verdier for glidende gjennomsnitt
         this.consecutiveHighPing = 0; // Teller consecutive high ping
         this.consecutiveHighJitter = 0; // Teller consecutive high jitter
-        this.lastPingCheck = null;
         
         // Log konfigurerte terskelverdier ved oppstart
         this.logQualityThresholds();
@@ -78,25 +77,6 @@ class NetworkQualityService {
         };
     }
     
-    // Sjekk om det er tid for ny ping-måling (basert på konfigurerbart intervall)
-    shouldMeasurePing() {
-        const monitoring = config.QUALITY_MONITORING;
-        const intervalMs = monitoring.PING_INTERVAL_SECONDS * 1000;
-        
-        if (!this.lastPingCheck) {
-            this.lastPingCheck = Date.now();
-            return true;
-        }
-        
-        const timeSinceLastCheck = Date.now() - this.lastPingCheck;
-        if (timeSinceLastCheck >= intervalMs) {
-            this.lastPingCheck = Date.now();
-            return true;
-        }
-        
-        return false;
-    }
-
     async measurePing(hostname) {
         try {
             // Bruk ICMP ping for ekte nettverkslatens
